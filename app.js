@@ -532,11 +532,13 @@ function linkBtn(url, label) {
 }
 
 /* ============================================================
-   ゲーミフィケーション：タップでキラッ演出（毎回ランダムなバリエーション）
+   ゲーミフィケーション：タップでキラッ演出（紙吹雪／花火、ことばは無し）
+   ------------------------------------------------------------
+   FX_STYLES に4パターン（confetti / firework / multi / fountain）。
+   FX_DEFAULT で全体の既定スタイルを切り替えられる。
    ============================================================ */
-const CHEER_EMOJIS = ["🎉", "⭐", "🌟", "💯", "👍", "🔥", "😆", "🥳", "✨", "💪", "🌈", "⚡", "🚀", "🏆"];
-const CHEER_WORDS  = ["ナイス！", "やった！", "いいね！", "すごい！", "その調子！", "かんぺき！", "えらい！", "よし！", "ナイスファイト！", "天才！"];
-const CHEER_COLORS = ["#2563eb", "#16a34a", "#ea7317", "#dc2626", "#7c3aed", "#eab308", "#06b6d4", "#ec4899"];
+const CHEER_COLORS = ["#2563eb", "#16a34a", "#ea7317", "#dc2626", "#7c3aed", "#eab308", "#06b6d4", "#ec4899", "#f59e0b"];
+const FX_DEFAULT = "firework";   // デイリー以外の操作で使う既定スタイル
 
 const _rand = (a, b) => a + Math.random() * (b - a);
 const _pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -551,63 +553,93 @@ function fxSpawn(node, x, y, ms) {
   fxLayer().appendChild(node);
   setTimeout(() => node.remove(), ms);
 }
-function fxConfetti(x, y, n) {
-  for (let i = 0; i < n; i++) {
-    const p = el("div", "fx-confetti");
-    const ang = _rand(0, Math.PI * 2), dist = _rand(45, 120);
-    p.style.background = _pick(CHEER_COLORS);
-    p.style.setProperty("--dx", Math.cos(ang) * dist + "px");
-    p.style.setProperty("--dy", (Math.sin(ang) * dist - _rand(20, 60)) + "px");
-    p.style.setProperty("--rot", _rand(-360, 360) + "deg");
-    fxSpawn(p, x, y, 950);
-  }
+function fxRing(x, y, big) {
+  const r = el("div", "fx-ring" + (big ? " big" : ""));
+  r.style.borderColor = _pick(CHEER_COLORS);
+  fxSpawn(r, x, y, big ? 700 : 600);
 }
 function fxSparkles(x, y, n) {
   for (let i = 0; i < n; i++) {
     const s = el("div", "fx-spark", _pick(["✨", "⭐", "🌟"]));
-    s.style.setProperty("--dx", _rand(-45, 45) + "px");
-    s.style.setProperty("--dy", _rand(-75, -30) + "px");
+    s.style.setProperty("--dx", _rand(-50, 50) + "px");
+    s.style.setProperty("--dy", _rand(-80, -30) + "px");
     s.style.fontSize = _rand(13, 26) + "px";
     fxSpawn(s, x + _rand(-10, 10), y + _rand(-10, 10), 850);
   }
 }
-function fxEmoji(x, y)  { fxSpawn(el("div", "fx-emoji", _pick(CHEER_EMOJIS)), x, y, 950); }
-function fxWord(x, y)   { const w = el("div", "fx-word", _pick(CHEER_WORDS)); w.style.color = _pick(CHEER_COLORS); fxSpawn(w, x, y, 950); }
-function fxRing(x, y)   { const r = el("div", "fx-ring"); r.style.borderColor = _pick(CHEER_COLORS); fxSpawn(r, x, y, 600); }
-
-// level 1=軽い操作 / 2=完了・○・退治など大きめ
-function cheer(evt, level) {
-  let x = window.innerWidth / 2, y = window.innerHeight / 3;
-  if (evt && evt.clientX != null && (evt.clientX || evt.clientY)) { x = evt.clientX; y = evt.clientY; }
-  if (level >= 2) {
-    fxRing(x, y);
-    fxConfetti(x, y, 16);
-    fxEmoji(x, y);
-    if (Math.random() < 0.7) fxWord(x, y - 8);
-  } else {
-    // 軽い操作：毎回ランダムに1種（たまに2種）
-    _pick([
-      () => fxSparkles(x, y, 5),
-      () => fxEmoji(x, y),
-      () => fxWord(x, y),
-      () => { fxRing(x, y); fxSparkles(x, y, 3); },
-      () => fxConfetti(x, y, 7),
-    ])();
+// 放射状に飛んで弧を描いて落ちる粒（紙吹雪・花火の本体）
+function fxBurst(x, y, n, o) {
+  const dur = o.dur || 1200;
+  for (let i = 0; i < n; i++) {
+    const p = el("div", "fx-p");
+    const ang = _rand(o.angMin, o.angMax);
+    const dist = o.dist * _rand(0.55, 1);
+    p.style.background = _pick(CHEER_COLORS);
+    const w = _rand(o.size[0], o.size[1]);
+    p.style.width = w + "px";
+    p.style.height = (o.tall ? w * 1.7 : w) + "px";
+    p.style.setProperty("--dx", Math.cos(ang) * dist + "px");
+    p.style.setProperty("--dy", Math.sin(ang) * dist + "px");
+    p.style.setProperty("--fall", (o.fall || 90) + "px");
+    p.style.setProperty("--rot", _rand(-540, 540) + "deg");
+    p.style.animationDuration = dur + "ms";
+    const dl = o.delayMax ? _rand(0, o.delayMax) : 0;
+    p.style.animationDelay = dl + "ms";
+    fxSpawn(p, x, y, dur + dl + 60);
   }
 }
 
-// デイリー達成（5個/8個）を超えた瞬間に画面中央でお祝い
+// k = 強さ（1=フル / 0.55=軽い操作）
+const TAU = Math.PI * 2;
+const FX_STYLES = {
+  // A: 大紙吹雪（クラッカーのように大量に開いて舞い落ちる）
+  confetti(x, y, k) {
+    fxRing(x, y, true);
+    fxBurst(x, y, Math.round(50 * k + 12), { angMin: 0, angMax: TAU, dist: 140, size: [7, 13], tall: true, fall: 180, dur: 1600, delayMax: 140 });
+  },
+  // B: 花火（パッと放射して落ちる＋きらめき）
+  firework(x, y, k) {
+    fxRing(x, y, true);
+    fxBurst(x, y, Math.round(34 * k + 12), { angMin: 0, angMax: TAU, dist: 165, size: [6, 10], fall: 90, dur: 1250 });
+    fxSparkles(x, y, Math.round(7 * k + 3));
+  },
+  // C: 連発花火（時間差で複数バースト）
+  multi(x, y, k) {
+    const bursts = [[-130, -55, 0], [10, -100, 130], [125, -60, 250], [-60, -25, 380], [70, -15, 470]];
+    bursts.forEach(function (b, idx) {
+      if (idx >= 3 && k < 1) return;
+      setTimeout(function () {
+        fxRing(x + b[0], y + b[1], true);
+        fxBurst(x + b[0], y + b[1], Math.round(18 * k + 8), { angMin: 0, angMax: TAU, dist: 105, size: [5, 9], fall: 80, dur: 1150 });
+      }, b[2]);
+    });
+  },
+  // D: 噴水（上に吹き上がって落ちる＝クラッカー縦撃ち）
+  fountain(x, y, k) {
+    fxBurst(x, y, Math.round(40 * k + 14), { angMin: -Math.PI / 2 - 0.75, angMax: -Math.PI / 2 + 0.75, dist: 200, size: [6, 12], tall: true, fall: 260, dur: 1600, delayMax: 90 });
+  },
+};
+
+// level 1=軽い操作 / 2=完了・○・退治など大きめ。style未指定はFX_DEFAULT
+function cheer(evt, level, style) {
+  let x = window.innerWidth / 2, y = window.innerHeight / 3;
+  if (evt && evt.clientX != null && (evt.clientX || evt.clientY)) { x = evt.clientX; y = evt.clientY; }
+  const k = level >= 2 ? 1 : 0.55;
+  (FX_STYLES[style] || FX_STYLES[FX_DEFAULT])(x, y, k);
+}
+
+// デイリー達成（5個/8個）を超えた瞬間に画面中央で連発花火
 let _prevDaily = -1;
 function milestoneCheer(n) {
-  if (_prevDaily >= 0) {
-    if ((_prevDaily < 5 && n >= 5) || (_prevDaily < 8 && n >= 8)) {
-      const cx = window.innerWidth / 2, cy = window.innerHeight / 3;
-      fxConfetti(cx, cy, 36);
-      fxEmoji(cx, cy); fxWord(cx, cy - 16);
-    }
+  if (_prevDaily >= 0 && ((_prevDaily < 5 && n >= 5) || (_prevDaily < 8 && n >= 8))) {
+    FX_STYLES.multi(window.innerWidth / 2, window.innerHeight / 3, 1.4);
   }
   _prevDaily = n;
 }
+
+/* ★お試し：毎日のチェック4教材ごとに割り当てる演出スタイル
+   ["デイリー","基礎定着","分野別","でる順"] の順 */
+const MATRIX_ROW_STYLES = ["confetti", "firework", "multi", "fountain"];
 
 /* ---- matrix（教材×曜日）：教材ごとに「やった行(曜日ボタン)」+「解き直し行」を縦に積む ---- */
 function renderMatrix(task) {
@@ -619,6 +651,8 @@ function renderMatrix(task) {
   function render() {
     grid.innerHTML = "";
     task.rows.forEach((row, ri) => {
+      // ★お試し中：教材ごとに違う演出スタイルを割当（デイリー/基礎定着/分野別/でる順）
+      const fxStyle = MATRIX_ROW_STYLES[ri % MATRIX_ROW_STYLES.length];
       if (ri > 0) { const sep = el("div", "m-sep"); sep.style.gridColumn = "1 / -1"; grid.appendChild(sep); }
 
       // やった行：教材名（太字）+ 曜日トグル（元のボタン）
@@ -635,7 +669,7 @@ function renderMatrix(task) {
           setVal(doKey, nv);
           if (nv) setVal(`${row.id}.redo.${i}`, "X"); else delVal(`${row.id}.redo.${i}`);
           render(); refreshProgress();
-          if (nv) cheer(evt, 1);
+          if (nv) cheer(evt, 1, fxStyle);
         });
         grid.appendChild(cell);
       });
@@ -656,7 +690,7 @@ function renderMatrix(task) {
             const nv = getVal(reKey, "X") === "○" ? "X" : "○";
             setVal(reKey, nv);
             render(); refreshProgress();
-            if (nv === "○") cheer(evt, 2);
+            if (nv === "○") cheer(evt, 2, fxStyle);
           });
           grid.appendChild(rb);
         }
@@ -1018,7 +1052,7 @@ function renderGallery(task) {
       setVal(key, nv);
       cell.classList.toggle("on", nv);
       refreshProgress();
-      if (nv) cheer(evt, 2);   // 退治＝大きめお祝い
+      if (nv) cheer(evt, 2, "multi");   // 退治＝連発花火
     });
     grid.appendChild(cell);
   }
