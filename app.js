@@ -344,20 +344,25 @@ function setSyncStatus(s) {
   e.className = "sync-status " + m.c;
 }
 
-// localStorage の全週データを { 週キー: 状態 } に集約
+// 週キー（2026-06-08）がスプレッドシートで日付型に変換されるのを防ぐ接頭辞
+const CLOUD_KEY = "wk:";
+// localStorage の全週データを { wk:週キー: 状態 } に集約
 function gatherAll() {
   const all = {};
   Object.keys(localStorage).forEach((k) => {
     if (k.startsWith(STORAGE_PREFIX)) {
-      try { all[k.slice(STORAGE_PREFIX.length)] = JSON.parse(localStorage.getItem(k)); } catch (_) {}
+      try { all[CLOUD_KEY + k.slice(STORAGE_PREFIX.length)] = JSON.parse(localStorage.getItem(k)); } catch (_) {}
     }
   });
   return all;
 }
-// クラウドを正としてローカルへ反映
+// クラウドを正としてローカルへ反映（接頭辞を外して週キーに戻す）
 function applyAll(all) {
   Object.keys(localStorage).forEach((k) => { if (k.startsWith(STORAGE_PREFIX)) localStorage.removeItem(k); });
-  Object.keys(all || {}).forEach((wk) => { localStorage.setItem(STORAGE_PREFIX + wk, JSON.stringify(all[wk])); });
+  Object.keys(all || {}).forEach((rawKey) => {
+    const wk = rawKey.replace(/^wk:/, "");
+    localStorage.setItem(STORAGE_PREFIX + wk, JSON.stringify(all[rawKey]));
+  });
 }
 
 let _saveTimer = null, _pendingSave = false;
