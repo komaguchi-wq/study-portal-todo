@@ -210,7 +210,7 @@ const SUBJECTS = [
         link: APP.math,
         col: "R",
         tasks: [
-          { id: "m_dsupport", type: "dsupport" },
+          { id: "m_dsupport", type: "track", units: DS_UNITS, items: ["A", "B", "C", "D", "E"] },
         ],
       },
       {
@@ -441,10 +441,11 @@ function taskStats(task) {
     let done = 0, total = 0;
     task.rows.forEach((row) => {
       task.cols.forEach((_, i) => {
-        total += 2;                                   // ○=2, X=1, 未=0 の半分刻み
+        total += 3;                                   // やった + 解き直し○ + 入力済み○
         if (getVal(`${row.id}.${i}`, false)) {
           done += 1;
           if (getVal(`${row.id}.redo.${i}`, "X") === "○") done += 1;
+          if (getVal(`${row.id}.input.${i}`, "X") === "○") done += 1;
         }
       });
     });
@@ -471,9 +472,10 @@ function taskStats(task) {
       task.items.forEach((_, i) => {
         const s = getVal(`${task.id}.${unit}.${i}.state`, 0);
         if (s === 3) return;                            // 存在しない は集計から除外
-        total += 3;                                     // 進行中=1, 完了=2, 完了+○=3
+        total += 4;                                     // 進行中=1, 完了=2, +解き直し○, +入力済み○
         done += s;
         if (s === 2 && getVal(`${task.id}.${unit}.${i}.redo`, "X") === "○") done += 1;
+        if (s === 2 && getVal(`${task.id}.${unit}.${i}.input`, "X") === "○") done += 1;
       });
     });
     return { done, total };
@@ -503,8 +505,11 @@ function taskStats(task) {
     let done = 0, total = 0;
     ["point", "test"].forEach((b) => {
       const n = getVal(`${task.id}.${b}.nums`, []).length;
-      total += n;
-      for (let i = 0; i < n; i++) if (getVal(`${task.id}.${b}.redo.${i}`, "X") === "○") done++;
+      total += n * 2;                  // 解き直し○ + 入力済み○
+      for (let i = 0; i < n; i++) {
+        if (getVal(`${task.id}.${b}.redo.${i}`, "X") === "○") done++;
+        if (getVal(`${task.id}.${b}.input.${i}`, "X") === "○") done++;
+      }
     });
     return { done, total };
   }
@@ -673,39 +678,42 @@ function renderMatrix(task) {
         cell.addEventListener("click", (evt) => {
           const nv = !getVal(doKey, false);
           setVal(doKey, nv);
-          if (nv) setVal(`${row.id}.redo.${i}`, "X"); else delVal(`${row.id}.redo.${i}`);
+          if (nv) { setVal(`${row.id}.redo.${i}`, "X"); setVal(`${row.id}.input.${i}`, "X"); }
+          else { delVal(`${row.id}.redo.${i}`); delVal(`${row.id}.input.${i}`); }
           render(); refreshProgress();
           if (nv) cheer(evt, 1, fxStyle);
         });
         grid.appendChild(cell);
       });
 
-      // 解き直し行：小さい字 + ○セル（やった日のみ X→○）
-      grid.appendChild(el("div", "m-redolabel", "解き直し"));
-      task.cols.forEach((c, i) => {
-        const doKey = `${row.id}.${i}`;
-        const reKey = `${row.id}.redo.${i}`;
-        if (!getVal(doKey, false)) {
-          grid.appendChild(el("div", "m-redo cr-dash", "-"));
-        } else {
-          const st = getVal(reKey, "X");
-          const rb = el("button", "m-redo cr-redo " + (st === "○" ? "st-done" : "st-todo"), st);
-          rb.type = "button";
-          rb.title = `${row.label} ${c} の解き直し`;
-          rb.addEventListener("click", (evt) => {
-            const nv = getVal(reKey, "X") === "○" ? "X" : "○";
-            setVal(reKey, nv);
-            render(); refreshProgress();
-            if (nv === "○") cheer(evt, 2, fxStyle);
-          });
-          grid.appendChild(rb);
-        }
+      // 解き直し行 / 入力済み行：小さい字 + セル（やった日のみ X→○）
+      [["解き直し", "redo"], ["入力済み", "input"]].forEach(([label, kind]) => {
+        grid.appendChild(el("div", "m-redolabel", label));
+        task.cols.forEach((c, i) => {
+          const doKey = `${row.id}.${i}`;
+          const key = `${row.id}.${kind}.${i}`;
+          if (!getVal(doKey, false)) {
+            grid.appendChild(el("div", "m-redo cr-dash", "-"));
+          } else {
+            const st = getVal(key, "X");
+            const rb = el("button", "m-redo cr-redo " + (st === "○" ? "st-done" : "st-todo"), st);
+            rb.type = "button";
+            rb.title = `${row.label} ${c} の${label}`;
+            rb.addEventListener("click", (evt) => {
+              const nv = getVal(key, "X") === "○" ? "X" : "○";
+              setVal(key, nv);
+              render(); refreshProgress();
+              if (nv === "○") cheer(evt, 2, fxStyle);
+            });
+            grid.appendChild(rb);
+          }
+        });
       });
     });
   }
   render();
 
-  const note = el("div", "m-note", "曜日＝やった（緑）／「解き直し」はタップで X→○");
+  const note = el("div", "m-note", "曜日＝やった（緑）／「解き直し」「入力済み」はタップで X→○");
   wrap.appendChild(note);
   return wrap;
 }
@@ -915,8 +923,8 @@ function trackBody(task, unit) {
       b.addEventListener("click", (evt) => {
         const ns = (getVal(stKey, 0) + 1) % 4;   // 未→進行中→完了→存在しない→未
         setVal(stKey, ns);
-        if (ns === 2) setVal(`${task.id}.${unit}.${i}.redo`, "X");
-        else delVal(`${task.id}.${unit}.${i}.redo`);
+        if (ns === 2) { setVal(`${task.id}.${unit}.${i}.redo`, "X"); setVal(`${task.id}.${unit}.${i}.input`, "X"); }
+        else { delVal(`${task.id}.${unit}.${i}.redo`); delVal(`${task.id}.${unit}.${i}.input`); }
         render(); refreshProgress();
         if (ns === 1) cheer(evt, 1);
         else if (ns === 2) cheer(evt, 2);
@@ -924,25 +932,27 @@ function trackBody(task, unit) {
       grid.appendChild(b);
     });
 
-    // 解き直し行（完了の項目だけ X→○）
-    grid.appendChild(el("div", "tk-rowlabel", "解き直し"));
-    task.items.forEach((it, i) => {
-      const stKey = `${task.id}.${unit}.${i}.state`;
-      const reKey = `${task.id}.${unit}.${i}.redo`;
-      if (getVal(stKey, 0) !== 2) {
-        grid.appendChild(el("div", "tk-redo cr-dash", "-"));
-      } else {
-        const st = getVal(reKey, "X");
-        const rb = el("button", "tk-redo cr-redo " + (st === "○" ? "st-done" : "st-todo"), st);
-        rb.type = "button";
-        rb.addEventListener("click", (evt) => {
-          const nv = getVal(reKey, "X") === "○" ? "X" : "○";
-          setVal(reKey, nv);
-          render(); refreshProgress();
-          if (nv === "○") cheer(evt, 2);
-        });
-        grid.appendChild(rb);
-      }
+    // 解き直し行 / 入力済み行（完了の項目だけ X→○）
+    [["解き直し", "redo"], ["入力済み", "input"]].forEach(([label, kind]) => {
+      grid.appendChild(el("div", "tk-rowlabel", label));
+      task.items.forEach((it, i) => {
+        const stKey = `${task.id}.${unit}.${i}.state`;
+        const key = `${task.id}.${unit}.${i}.${kind}`;
+        if (getVal(stKey, 0) !== 2) {
+          grid.appendChild(el("div", "tk-redo cr-dash", "-"));
+        } else {
+          const st = getVal(key, "X");
+          const rb = el("button", "tk-redo cr-redo " + (st === "○" ? "st-done" : "st-todo"), st);
+          rb.type = "button";
+          rb.addEventListener("click", (evt) => {
+            const nv = getVal(key, "X") === "○" ? "X" : "○";
+            setVal(key, nv);
+            render(); refreshProgress();
+            if (nv === "○") cheer(evt, 2);
+          });
+          grid.appendChild(rb);
+        }
+      });
     });
   }
   render();
@@ -967,13 +977,14 @@ function makeCounterRedo(base, opts) {
     pairs.innerHTML = "";
     const nums = getNums();
 
-    // 先頭：ラベルのペア（上=項目名 / 下=解き直し）
+    // 先頭：ラベルのペア（上=項目名 / 解き直し / 入力済み）
     const lab = el("div", "cr-pair cr-pair-label");
     lab.appendChild(el("div", "cr-plabel", opts.title));
     lab.appendChild(el("div", "cr-plabel", "解き直し"));
+    lab.appendChild(el("div", "cr-plabel", "入力済み"));
     pairs.appendChild(lab);
 
-    // 各ポイント＝[番号select] の直下に [解き直し] を縦ペアで配置
+    // 各ポイント＝[番号select] の直下に [解き直し][入力済み] を縦ペアで配置
     nums.forEach((num, i) => {
       const pair = el("div", "cr-pair");
       const sel = el("select", "cr-select");
@@ -986,17 +997,18 @@ function makeCounterRedo(base, opts) {
       });
       pair.appendChild(sel);
 
-      const rk = `${base}.redo.${i}`;
-      const st = getVal(rk, "X");
-      const rb = el("button", "cr-redo " + (st === "○" ? "st-done" : "st-todo"), st);
-      rb.type = "button";
-      rb.addEventListener("click", (evt) => {
-        const nv = getVal(rk, "X") === "○" ? "X" : "○";
-        setVal(rk, nv);
-        render(); refreshProgress();
-        if (nv === "○") cheer(evt, 2);
+      [`${base}.redo.${i}`, `${base}.input.${i}`].forEach((key) => {
+        const st = getVal(key, "X");
+        const rb = el("button", "cr-redo " + (st === "○" ? "st-done" : "st-todo"), st);
+        rb.type = "button";
+        rb.addEventListener("click", (evt) => {
+          const nv = getVal(key, "X") === "○" ? "X" : "○";
+          setVal(key, nv);
+          render(); refreshProgress();
+          if (nv === "○") cheer(evt, 2);
+        });
+        pair.appendChild(rb);
       });
-      pair.appendChild(rb);
       pairs.appendChild(pair);
     });
 
@@ -1014,6 +1026,7 @@ function makeCounterRedo(base, opts) {
         a.push(next);
         setNums(a);
         setVal(`${base}.redo.${a.length - 1}`, "X");
+        setVal(`${base}.input.${a.length - 1}`, "X");
         render(); refreshProgress();
         cheer(evt, 1);
       });
@@ -1025,6 +1038,7 @@ function makeCounterRedo(base, opts) {
       rem.addEventListener("click", () => {
         const a = getNums();
         delVal(`${base}.redo.${a.length - 1}`);
+        delVal(`${base}.input.${a.length - 1}`);
         a.pop(); setNums(a);
         render(); refreshProgress();
       });
