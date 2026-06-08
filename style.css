@@ -1,0 +1,384 @@
+/* ============================================================
+   学習ポータル ToDo  ─  style.css
+   iPad（Chrome）での閲覧を前提に、タッチしやすい大きめUI
+   ============================================================ */
+:root {
+  --bg:        #f4f6fb;
+  --card:      #ffffff;
+  --ink:       #1f2937;
+  --ink-soft:  #6b7280;
+  --line:      #e5e7eb;
+  --math:      #2563eb;  /* 算数=青 */
+  --science:   #16a34a;  /* 理科=緑 */
+  --shakai:    #ea7317;  /* 社会=橙 */
+  --done:      #16a34a;
+  --shadow:    0 2px 10px rgba(0,0,0,.06);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  padding-bottom: 40px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* ---------- ヘッダー ---------- */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #ffffffee;
+  backdrop-filter: saturate(1.4) blur(6px);
+  border-bottom: 1px solid var(--line);
+  padding: 14px 16px 12px;
+}
+.app-header h1 { margin: 0 0 10px; font-size: 22px; }
+
+.week-nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.week-btn {
+  width: 44px; height: 44px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 12px;
+  font-size: 26px; line-height: 1;
+  color: var(--ink);
+  cursor: pointer;
+}
+.week-btn:active { background: #eef2ff; }
+.week-label { display: flex; align-items: baseline; gap: 8px; min-width: 200px; }
+#weekRange { font-size: 18px; font-weight: 700; }
+.week-tag {
+  font-size: 12px; font-weight: 700;
+  padding: 2px 8px; border-radius: 999px;
+}
+.week-tag.now    { background: #dbeafe; color: #1d4ed8; }
+.week-tag.past   { background: #f3f4f6; color: #6b7280; }
+.week-tag.future { background: #fef3c7; color: #b45309; }
+.this-week-btn {
+  margin-left: auto;
+  border: none; background: var(--math); color: #fff;
+  padding: 10px 14px; border-radius: 12px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.this-week-btn:active { opacity: .85; }
+
+/* 全体進捗 */
+.overall { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.overall-bar { flex: 1; height: 12px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+.overall-fill { height: 100%; width: 0; background: linear-gradient(90deg,#2563eb,#16a34a); transition: width .25s; }
+.overall-text { font-weight: 700; font-size: 15px; min-width: 44px; text-align: right; }
+
+/* ---------- ボード ---------- */
+.board {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+/* 760px以上: 算数は横長（全幅）、理科・社会は2カラムで下に横並び */
+@media (min-width: 760px) {
+  .board { grid-template-columns: 1fr 1fr; }
+  .subj-math { grid-column: 1 / -1; }
+}
+/* 算数カード内は左右2カラム（左下にギャラリーを配置） */
+.subj-math .subj-groups.two-col { display: flex; gap: 28px; }
+.subj-math .subj-col { flex: 1; min-width: 0; }
+.subj-math .subj-col > .group:first-child { margin-top: 0; }
+@media (max-width: 759px) {
+  .subj-math .subj-groups.two-col { flex-direction: column; gap: 0; }
+}
+
+/* ---------- 教科カード ---------- */
+.subject-card {
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+  border-top: 5px solid var(--line);
+  min-width: 0;            /* 長いselect等で横にはみ出さない */
+  overflow: hidden;
+}
+/* 長い単元名のselectが幅を押し広げないように */
+.ds-selrow { min-width: 0; }
+.ds-select { max-width: 100%; }
+.subj-math    { border-top-color: var(--math); }
+.subj-science { border-top-color: var(--science); }
+.subj-shakai  { border-top-color: var(--shakai); }
+
+.subject-header { display: flex; align-items: center; gap: 10px; }
+.subject-icon { font-size: 26px; }
+.subject-name { margin: 0; font-size: 20px; flex: 1; }
+.subject-pct { font-size: 18px; font-weight: 800; color: var(--ink-soft); }
+
+.subject-bar { height: 8px; background: #eef0f4; border-radius: 999px; overflow: hidden; margin: 10px 0 6px; }
+.subject-fill { height: 100%; width: 0; border-radius: 999px; transition: width .25s; }
+.subj-math    .subject-fill { background: var(--math); }
+.subj-science .subject-fill { background: var(--science); }
+.subj-shakai  .subject-fill { background: var(--shakai); }
+
+/* ---------- グループ ---------- */
+.group { margin-top: 14px; }
+.group-head {
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 4px; margin-bottom: 8px;
+}
+.group-title { font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+
+/* ---------- タスク ---------- */
+.task { padding: 8px 4px; border-bottom: 1px dashed #eef0f4; }
+.task:last-child { border-bottom: none; }
+.task-head { display: flex; align-items: center; gap: 8px; }
+
+.check-label {
+  display: flex; align-items: center; gap: 10px;
+  flex: 1; cursor: pointer; font-size: 16px;
+  padding: 4px 0;
+}
+.check-label input[type="checkbox"] {
+  width: 26px; height: 26px; flex: 0 0 auto;
+  accent-color: var(--done); cursor: pointer;
+}
+.check-text { transition: color .15s; }
+.check-label.done .check-text { color: var(--done); text-decoration: line-through; }
+
+.task-label { font-size: 16px; }
+
+/* リンクボタン */
+.task-link {
+  flex: 0 0 auto;
+  font-size: 13px; font-weight: 700;
+  color: #fff; background: #64748b;
+  padding: 6px 12px; border-radius: 999px;
+  text-decoration: none;
+}
+.task-link:active { opacity: .8; }
+
+/* マトリクス（教材×曜日）：やった行(曜日ボタン) + 解き直し行 を縦に積む */
+.type-matrix { padding: 8px 2px; }
+.m-grid {
+  display: grid;
+  gap: 5px 5px;
+  align-items: center;
+  max-width: 560px;            /* 横長カードでもセルが大きくなりすぎない */
+  margin-top: 4px;
+}
+.m-sep { height: 1px; background: var(--line); margin: 5px 0; }
+.m-itemlabel {
+  font-size: 15px; font-weight: 800; color: var(--ink);
+  white-space: nowrap; padding-right: 10px; text-align: right;
+}
+.m-redolabel {
+  font-size: 11px; font-weight: 700; color: var(--ink-soft);
+  white-space: nowrap; padding-right: 10px; text-align: right;
+}
+.m-day {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; height: 44px; min-width: 0; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: #fafbfc;
+}
+.m-daylabel { font-size: 14px; font-weight: 700; color: var(--ink-soft); line-height: 1; }
+.m-daymark  { font-size: 11px; font-weight: 800; color: var(--done); height: 12px; line-height: 1; }
+.m-day.on { background: #dcfce7; border-color: var(--done); }
+.m-day.on .m-daylabel { color: var(--done); }
+.type-matrix .m-redo {
+  width: 100%; min-width: 0; height: 34px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.m-note { margin-top: 12px; font-size: 12px; color: var(--ink-soft); }
+
+/* 単元ウィジェット共通の余白（dsupport / track の外枠） */
+.type-unit { padding: 10px 4px; }
+
+/* トラック（理科）：単元選択 + 項目横並び + 3状態ボタン + 解き直し行 */
+.tk-grid {
+  display: grid;
+  gap: 6px 4px;
+  align-items: center;
+  margin-top: 4px;
+}
+.tk-corner { }
+.tk-colhead {
+  text-align: center; font-size: 11px; font-weight: 800; color: var(--ink);
+  line-height: 1.15;
+}
+.tk-rowlabel {
+  font-size: 11px; font-weight: 700; color: var(--ink-soft);
+  white-space: nowrap; padding-right: 6px; text-align: right;
+}
+.tk-state {
+  height: 40px; min-width: 0; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 9px;
+  font-size: 12px; font-weight: 800; line-height: 1.1; padding: 0 2px;
+}
+.tk-state.st0 { background: #f1f5f9; color: #94a3b8; }                       /* ー グレーアウト */
+.tk-state.st1 { background: #fef3c7; color: #b45309; border-color: #fcd34d; } /* 進行中 */
+.tk-state.st2 { background: #dcfce7; color: #15803d; border-color: #86efac; } /* 完了 */
+.tk-state:active { transform: scale(.96); }
+.unit-block .tk-redo {
+  width: 100%; min-width: 0; height: 34px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* 複数単元ウィジェット（単元追加ボタン） */
+.unit-block + .unit-block { border-top: 1px dashed var(--line); margin-top: 12px; padding-top: 12px; }
+.unit-remove {
+  flex: 0 0 auto; width: 36px; height: 42px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: #fff; color: var(--ink-soft);
+  font-size: 18px; font-weight: 700; cursor: pointer;
+}
+.unit-add-btn {
+  width: 100%; margin-top: 10px; padding: 9px;
+  border: 1px dashed #d1d5db; border-radius: 10px;
+  background: #f8fafc; color: #9ca3af;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.unit-add-btn:active { background: #f1f5f9; }
+
+/* 間違い撲滅ギャラリー（N退治トグル） */
+.type-gallery { padding: 8px 2px; }
+.gl-grid { display: grid; gap: 6px; }
+.gl-cell {
+  height: 40px; min-width: 0; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: #fafbfc; color: var(--ink-soft);
+  font-size: 13px; font-weight: 800;
+}
+.gl-cell.on { background: #dcfce7; border-color: var(--done); color: #15803d; }
+.gl-cell:active { transform: scale(.95); }
+.gl-note { margin-top: 10px; font-size: 12px; color: var(--ink-soft); }
+
+/* グリッド（曜日）：やった行 + 解き直し行（上下の列を揃える）
+   CSS Grid なので 月〜日 は必ず1行に収まり、幅が狭い時はセルが縮む（折り返さない） */
+.g-grid {
+  display: grid;
+  gap: 6px 4px;
+  align-items: center;
+  margin-top: 8px;
+}
+.g-rowlabel {
+  font-size: 12px; font-weight: 700; color: var(--ink-soft);
+  white-space: nowrap; padding-right: 5px; text-align: right;
+}
+.g-day {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; height: 46px; min-width: 0; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: #fafbfc;
+}
+.g-daylabel { font-size: 14px; font-weight: 700; color: var(--ink-soft); line-height: 1; }
+.g-daymark  { font-size: 11px; font-weight: 800; color: var(--done); height: 12px; line-height: 1; }
+.g-day.on { background: #dcfce7; border-color: var(--done); }
+.g-day.on .g-daylabel { color: var(--done); }
+.type-grid .g-redo {
+  width: 100%; min-width: 0; height: 38px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* 得点入力 */
+.score-wrap { display: flex; align-items: center; gap: 6px; margin: 6px 0 2px 36px; }
+.score-prefix { font-size: 13px; color: var(--ink-soft); }
+.score-input {
+  width: 72px; height: 38px;
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: 18px; text-align: center; font-weight: 700;
+  color: var(--ink);
+}
+.score-input:focus { outline: 2px solid #93c5fd; border-color: #93c5fd; }
+.score-suffix { font-size: 14px; color: var(--ink-soft); }
+
+/* ---------- 達成バッジ（毎日のチェック） ---------- */
+.milestone-badge {
+  margin-left: auto;
+  font-size: 12px; font-weight: 800;
+  padding: 4px 10px; border-radius: 999px;
+  white-space: nowrap;
+}
+.milestone-badge.lv0 { background: #f1f5f9; color: #64748b; }
+.milestone-badge.lv1 { background: #dcfce7; color: #15803d; }
+.milestone-badge.lv2 { background: #fef3c7; color: #b45309; box-shadow: 0 0 0 2px #fde68a inset; }
+
+/* ---------- デイリーサポート ---------- */
+.ds-selrow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.ds-sellabel { font-size: 13px; font-weight: 700; color: var(--ink-soft); flex: 0 0 auto; }
+.ds-select {
+  flex: 1; min-width: 0;
+  height: 42px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: 15px; font-weight: 700; color: var(--ink);
+  background: #fff;
+}
+.ds-rows { display: flex; flex-direction: column; gap: 10px; }
+.ae-row { display: flex; flex-direction: column; gap: 6px; }
+.ae-label { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.ae-cells { display: flex; gap: 6px; flex-wrap: wrap; }
+.ae-btn {
+  width: 46px; height: 44px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: #fafbfc; color: var(--ink-soft);
+  font-size: 16px; font-weight: 800; cursor: pointer;
+}
+.ae-btn.on { background: var(--math); border-color: var(--math); color: #fff; }
+.ae-btn:active { transform: scale(.96); }
+/* 解き直しセル（やったボタンと幅を揃える） */
+.unit-block .ae-redo {
+  width: 46px; min-width: 46px; height: 44px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ---------- コベツバ（ポイント/解き直しを縦ペアにして折り返し） ---------- */
+.type-kobetsuba { padding: 10px 4px; }
+.cr-divider { height: 1px; background: var(--line); margin: 12px 0; }
+.cr-block { display: flex; flex-direction: column; }
+/* ペアを横に並べ、増えたらペアごと折り返す（解き直しは常にポイントの直下） */
+.cr-pairs { display: flex; flex-wrap: wrap; gap: 6px 6px; align-items: flex-start; }
+.cr-pair { display: flex; flex-direction: column; gap: 5px; }
+.cr-plabel {
+  height: 38px; display: flex; align-items: center; justify-content: flex-end;
+  font-size: 11px; font-weight: 700; color: var(--ink-soft); white-space: nowrap;
+  padding-right: 4px;
+}
+.cr-select {
+  width: 74px; height: 38px; padding: 0 2px;
+  border: 1.5px solid var(--math); border-radius: 10px;
+  background: #eff6ff; color: var(--math);
+  font-size: 13px; font-weight: 800; cursor: pointer;
+}
+.type-kobetsuba .cr-redo { width: 74px; }
+.cr-redo {
+  width: 72px; height: 38px;
+  border-radius: 10px; border: 1px solid var(--line);
+  font-size: 16px; font-weight: 800; cursor: pointer;
+}
+.cr-redo.st-todo { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+.cr-redo.st-done { background: #dcfce7; color: #15803d; border-color: #86efac; }
+.cr-add {
+  width: 72px; height: 38px; padding: 0;
+  border: 1.5px dashed var(--math); border-radius: 10px;
+  background: #eff6ff; color: var(--math);
+  font-size: 13px; font-weight: 800; cursor: pointer;
+}
+.cr-rem {
+  width: 72px; height: 38px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: #fff; color: var(--ink-soft);
+  font-size: 18px; font-weight: 800; cursor: pointer;
+}
+
+/* ---------- フッター ---------- */
+.app-footer { text-align: center; padding: 24px 16px; }
+.reset-btn {
+  border: 1px solid #fca5a5; background: #fff; color: #dc2626;
+  padding: 10px 18px; border-radius: 12px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.reset-btn:active { background: #fef2f2; }
+.note { color: var(--ink-soft); font-size: 12px; margin-top: 10px; }

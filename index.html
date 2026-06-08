@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>学習ポータル ToDo</title>
+  <link rel="stylesheet" href="style.css?v=12">
+</head>
+<body>
+  <header class="app-header">
+    <h1>📚 学習ポータル ToDo</h1>
+    <div class="week-nav">
+      <button id="prevWeek" class="week-btn" aria-label="前の週">‹</button>
+      <div class="week-label">
+        <span id="weekRange">―</span>
+        <span id="weekTag" class="week-tag"></span>
+      </div>
+      <button id="nextWeek" class="week-btn" aria-label="次の週">›</button>
+      <button id="thisWeek" class="this-week-btn">今週へ</button>
+    </div>
+    <div class="overall">
+      <div class="overall-bar"><div id="overallFill" class="overall-fill"></div></div>
+      <span id="overallText" class="overall-text">0%</span>
+    </div>
+  </header>
+
+  <main id="board" class="board"><!-- 教科カードがJSで描画されます --></main>
+
+  <footer class="app-footer">
+    <button id="resetWeek" class="reset-btn">この週のチェックをリセット</button>
+    <p class="note">チェック・得点は端末内（localStorage）に週ごとに保存されます。</p>
+  </footer>
+
+  <script src="app.js?v=12"></script>
+</body>
+</html>
