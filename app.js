@@ -419,6 +419,7 @@ async function cloudSync(push) {
     setSyncStatus("synced");
     _syncing = false;
     if (normCur() !== before) renderBoard();          // 他端末の更新が入ったら描画し直す
+    updateBonus();                                     // ボーナスメモも最新に（入力中は触らない）
     return true;
   } catch (_) {
     _syncing = false;
@@ -1227,6 +1228,16 @@ function refreshProgress() {
   updateMilestone();
 }
 
+/* ---- ボーナス進捗（自由メモ・週ごと・同期対象） ---- */
+function updateBonus() {
+  const t = document.getElementById("bonusMemo");
+  if (t && document.activeElement !== t) t.value = getVal("bonus", "");   // 入力中は触らない
+}
+function setupBonus() {
+  const t = document.getElementById("bonusMemo");
+  if (t) t.addEventListener("input", () => setVal("bonus", t.value));
+}
+
 /* ============================================================
    週ナビ
    ============================================================ */
@@ -1242,6 +1253,7 @@ function renderWeek() {
   else                  { tag.textContent = `${diff}週後`;  tag.className = "week-tag future"; }
   loadState();
   renderBoard();
+  updateBonus();
 }
 function goWeek(delta) { currentMonday = addDays(currentMonday, delta * 7); renderWeek(); }
 
@@ -1253,6 +1265,7 @@ document.getElementById("nextWeek").addEventListener("click", () => goWeek(1));
 document.getElementById("thisWeek").addEventListener("click", () => { currentMonday = startOfWeek(new Date()); renderWeek(); });
 
 // まずローカルで即描画 → クラウドとマージ（cloudSync内で必要時に再描画）
+setupBonus();
 renderWeek();
 cloudLoad();
 // 別端末で更新された内容を、タブに戻ったとき取り込む（マージなのでローカルは消えない）

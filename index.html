@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>学習ポータル ToDo</title>
-  <link rel="stylesheet" href="style.css?v=21">
+  <link rel="stylesheet" href="style.css?v=22">
 </head>
 <body>
   <header class="app-header">
@@ -27,10 +27,17 @@
 
   <main id="board" class="board"><!-- 教科カードがJSで描画されます --></main>
 
+  <section class="bonus-wrap">
+    <div class="bonus-card">
+      <div class="bonus-head">🌟 ボーナス進捗</div>
+      <textarea id="bonusMemo" class="bonus-memo" placeholder="自由メモ：がんばったこと・追加でやったこと・気づいたことなど"></textarea>
+    </div>
+  </section>
+
   <footer class="app-footer">
-    <p class="note">クラウド同期を設定すると、家族で同じ進捗をどの端末からも見られます（未設定時はこの端末内に保存）。</p>
+    <p class="note">家族で同じ進捗をどの端末からも見られます（クラウド同期）。</p>
   </footer>
 
-  <script src="app.js?v=21"></script>
+  <script src="app.js?v=22"></script>
 </body>
 </html>
