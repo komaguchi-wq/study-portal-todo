@@ -72,6 +72,13 @@ body {
 .overall-fill { height: 100%; width: 0; background: linear-gradient(90deg,#2563eb,#16a34a); transition: width .25s; }
 .overall-text { font-weight: 700; font-size: 15px; min-width: 44px; text-align: right; }
 
+/* クラウド同期ステータス */
+.sync-status { margin-top: 8px; font-size: 12px; font-weight: 700; }
+.sync-status.off  { color: #94a3b8; }
+.sync-status.busy { color: #b45309; }
+.sync-status.ok   { color: #16a34a; }
+.sync-status.err  { color: #dc2626; }
+
 /* ---------- ボード ---------- */
 .board {
   display: grid;

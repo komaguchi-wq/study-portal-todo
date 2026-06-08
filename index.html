@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>学習ポータル ToDo</title>
-  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
   <header class="app-header">
@@ -22,15 +22,16 @@
       <div class="overall-bar"><div id="overallFill" class="overall-fill"></div></div>
       <span id="overallText" class="overall-text">0%</span>
     </div>
+    <div id="syncStatus" class="sync-status off">● この端末内に保存</div>
   </header>
 
   <main id="board" class="board"><!-- 教科カードがJSで描画されます --></main>
 
   <footer class="app-footer">
     <button id="resetWeek" class="reset-btn">この週のチェックをリセット</button>
-    <p class="note">チェック・得点は端末内（localStorage）に週ごとに保存されます。</p>
+    <p class="note">クラウド同期を設定すると、家族で同じ進捗をどの端末からも見られます（未設定時はこの端末内に保存）。</p>
   </footer>
 
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

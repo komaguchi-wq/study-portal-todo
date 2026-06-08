@@ -322,6 +322,73 @@ function fmtRange(monday) {
 }
 
 /* ============================================================
+   クラウド同期（端末非依存）
+   ------------------------------------------------------------
+   SYNC_URL に Apps Script の /exec URL を入れると、家族で共有する
+   1つのデータとして全端末で同期する（空ならこの端末内のみ）。
+   ============================================================ */
+const SYNC_URL = ""; // ← デプロイ後の https://script.google.com/macros/s/.../exec を貼る
+
+function setSyncStatus(s) {
+  const e = document.getElementById("syncStatus");
+  if (!e) return;
+  const map = {
+    local:  { t: "この端末内に保存", c: "off" },
+    syncing:{ t: "同期中…",         c: "busy" },
+    saving: { t: "保存中…",         c: "busy" },
+    synced: { t: "クラウド同期済み", c: "ok" },
+    error:  { t: "同期エラー（端末内には保存済み）", c: "err" },
+  };
+  const m = map[s] || map.local;
+  e.textContent = "● " + m.t;
+  e.className = "sync-status " + m.c;
+}
+
+// localStorage の全週データを { 週キー: 状態 } に集約
+function gatherAll() {
+  const all = {};
+  Object.keys(localStorage).forEach((k) => {
+    if (k.startsWith(STORAGE_PREFIX)) {
+      try { all[k.slice(STORAGE_PREFIX.length)] = JSON.parse(localStorage.getItem(k)); } catch (_) {}
+    }
+  });
+  return all;
+}
+// クラウドを正としてローカルへ反映
+function applyAll(all) {
+  Object.keys(localStorage).forEach((k) => { if (k.startsWith(STORAGE_PREFIX)) localStorage.removeItem(k); });
+  Object.keys(all || {}).forEach((wk) => { localStorage.setItem(STORAGE_PREFIX + wk, JSON.stringify(all[wk])); });
+}
+
+let _saveTimer = null, _pendingSave = false;
+function cloudSave() {
+  if (!SYNC_URL) return;
+  _pendingSave = true;
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    setSyncStatus("saving");
+    fetch(SYNC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // preflight回避
+      body: JSON.stringify(gatherAll()),
+    })
+      .then((r) => r.json())
+      .then(() => { _pendingSave = false; setSyncStatus("synced"); })
+      .catch(() => { _pendingSave = false; setSyncStatus("error"); });
+  }, 800);
+}
+async function cloudLoad() {
+  if (!SYNC_URL) { setSyncStatus("local"); return false; }
+  setSyncStatus("syncing");
+  try {
+    const res = await fetch(SYNC_URL, { method: "GET" });
+    applyAll(await res.json());
+    setSyncStatus("synced");
+    return true;
+  } catch (_) { setSyncStatus("error"); return false; }
+}
+
+/* ============================================================
    状態管理（localStorage / 週ごと）
    ============================================================ */
 const STORAGE_PREFIX = "studytodo:v1:";
@@ -334,6 +401,7 @@ function loadState() {
 }
 function saveState() {
   localStorage.setItem(STORAGE_PREFIX + weekKey(currentMonday), JSON.stringify(state));
+  cloudSave();
 }
 function getVal(key, def) { return key in state ? state[key] : def; }
 function setVal(key, val) { state[key] = val; saveState(); }
@@ -992,4 +1060,10 @@ document.getElementById("resetWeek").addEventListener("click", () => {
   }
 });
 
+// まずローカルで即描画 → クラウドから取得できたら最新で再描画
 renderWeek();
+cloudLoad().then((ok) => { if (ok) renderWeek(); });
+// 別端末で更新された内容を、タブに戻ったとき（保存中でなければ）取り込む
+window.addEventListener("focus", () => {
+  if (SYNC_URL && !_pendingSave) cloudLoad().then((ok) => { if (ok) renderWeek(); });
+});
