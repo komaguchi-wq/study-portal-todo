@@ -346,71 +346,116 @@ function setSyncStatus(s) {
 
 // 週キー（2026-06-08）がスプレッドシートで日付型に変換されるのを防ぐ接頭辞
 const CLOUD_KEY = "wk:";
-// localStorage の全週データを { wk:週キー: 状態 } に集約
-function gatherAll() {
+const nowMs = () => Date.now();
+
+// 週レコードを {v:値, t:更新時刻(ms)} に正規化（旧形式=素の値だけも吸収）
+function parseWeek(raw) {
+  if (!raw) return { v: {}, t: {} };
+  let o; try { o = JSON.parse(raw); } catch (_) { return { v: {}, t: {} }; }
+  if (o && typeof o.v === "object" && typeof o.t === "object") return { v: o.v || {}, t: o.t || {} };
+  return { v: (o && typeof o === "object") ? o : {}, t: {} };
+}
+// 1週分をキー単位でマージ（更新時刻が新しい方を採用。削除は t有り/v無し の墓標で表現）
+function mergeWeek(a, b) {
+  a = a || { v: {}, t: {} }; b = b || { v: {}, t: {} };
+  const v = {}, t = {};
+  const keys = new Set([].concat(Object.keys(a.t || {}), Object.keys(b.t || {}), Object.keys(a.v || {}), Object.keys(b.v || {})));
+  keys.forEach((k) => {
+    const ta = (a.t && a.t[k]) || 0, tb = (b.t && b.t[k]) || 0;
+    const win = ta >= tb ? a : b;
+    t[k] = Math.max(ta, tb);
+    if (win.v && (k in win.v)) v[k] = win.v[k];   // 勝者に値があれば採用、無ければ削除（墓標）
+  });
+  return { v, t };
+}
+// 全週マージ（cloud と local を統合）
+function mergeAll(cloud, local) {
+  const out = {};
+  new Set([].concat(Object.keys(cloud || {}), Object.keys(local || {}))).forEach((wk) => {
+    const a = cloud && cloud[wk], b = local && local[wk];
+    out[wk] = (a && b) ? mergeWeek(a, b) : (a || b);
+  });
+  return out;
+}
+// localStorage の全週を { wk:週: {v,t} } に集約
+function gatherAllVT() {
   const all = {};
   Object.keys(localStorage).forEach((k) => {
-    if (k.startsWith(STORAGE_PREFIX)) {
-      try { all[CLOUD_KEY + k.slice(STORAGE_PREFIX.length)] = JSON.parse(localStorage.getItem(k)); } catch (_) {}
-    }
+    if (k.startsWith(STORAGE_PREFIX)) all[CLOUD_KEY + k.slice(STORAGE_PREFIX.length)] = parseWeek(localStorage.getItem(k));
   });
   return all;
 }
-// クラウドを正としてローカルへ反映（接頭辞を外して週キーに戻す）
-function applyAll(all) {
+// マージ結果を localStorage に反映（接頭辞を外す）
+function applyAllVT(all) {
   Object.keys(localStorage).forEach((k) => { if (k.startsWith(STORAGE_PREFIX)) localStorage.removeItem(k); });
   Object.keys(all || {}).forEach((rawKey) => {
-    const wk = rawKey.replace(/^wk:/, "");
-    localStorage.setItem(STORAGE_PREFIX + wk, JSON.stringify(all[rawKey]));
+    localStorage.setItem(STORAGE_PREFIX + rawKey.replace(/^wk:/, ""), JSON.stringify(all[rawKey]));
   });
 }
 
-let _saveTimer = null, _pendingSave = false;
+// 並び順を無視した現在週の値の比較用
+function normCur() {
+  const o = state || {};
+  return JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
+}
+
+/* ---- クラウド read-modify-write（キー単位マージで上書き事故を防ぐ） ---- */
+let _saveTimer = null, _retryTimer = null, _syncing = false;
+const fetchCloud = () => fetch(SYNC_URL, { method: "GET" }).then((r) => r.json());
+const postCloud = (obj) => fetch(SYNC_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(obj) }).then((r) => r.json());
+
+async function cloudSync(push) {
+  if (!SYNC_URL) { setSyncStatus("local"); return false; }
+  if (_syncing) return false;
+  _syncing = true;
+  setSyncStatus(push ? "saving" : "syncing");
+  try {
+    const cloud = await fetchCloud();
+    const merged = mergeAll(cloud, gatherAllVT());   // クラウド＋ローカルをキー単位で統合（和集合）
+    const before = normCur();
+    applyAllVT(merged);
+    loadState();                                      // 現在週の state/stateT を最新に
+    await postCloud(merged);                          // クラウドも統合結果に（丸ごと上書きしない）
+    setSyncStatus("synced");
+    _syncing = false;
+    if (normCur() !== before) renderBoard();          // 他端末の更新が入ったら描画し直す
+    return true;
+  } catch (_) {
+    _syncing = false;
+    setSyncStatus("error");
+    clearTimeout(_retryTimer);
+    _retryTimer = setTimeout(() => cloudSync(true), 6000);   // 失敗時は自動で再試行（オフライン入力を守る）
+    return false;
+  }
+}
 function cloudSave() {
   if (!SYNC_URL) return;
-  _pendingSave = true;
   clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(() => {
-    setSyncStatus("saving");
-    fetch(SYNC_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" }, // preflight回避
-      body: JSON.stringify(gatherAll()),
-    })
-      .then((r) => r.json())
-      .then(() => { _pendingSave = false; setSyncStatus("synced"); })
-      .catch(() => { _pendingSave = false; setSyncStatus("error"); });
+  _saveTimer = setTimeout(function trySave() {
+    if (_syncing) { _saveTimer = setTimeout(trySave, 500); return; }   // 同期中なら待ってから
+    cloudSync(true);
   }, 800);
 }
-async function cloudLoad() {
-  if (!SYNC_URL) { setSyncStatus("local"); return false; }
-  setSyncStatus("syncing");
-  try {
-    const res = await fetch(SYNC_URL, { method: "GET" });
-    applyAll(await res.json());
-    setSyncStatus("synced");
-    return true;
-  } catch (_) { setSyncStatus("error"); return false; }
-}
+const cloudLoad = () => cloudSync(true);
 
 /* ============================================================
    状態管理（localStorage / 週ごと）
    ============================================================ */
 const STORAGE_PREFIX = "studytodo:v1:";
 let currentMonday = startOfWeek(new Date());
-let state = {};
+let state = {}, stateT = {};
 
 function loadState() {
-  const raw = localStorage.getItem(STORAGE_PREFIX + weekKey(currentMonday));
-  state = raw ? JSON.parse(raw) : {};
+  const w = parseWeek(localStorage.getItem(STORAGE_PREFIX + weekKey(currentMonday)));
+  state = w.v; stateT = w.t;
 }
 function saveState() {
-  localStorage.setItem(STORAGE_PREFIX + weekKey(currentMonday), JSON.stringify(state));
+  localStorage.setItem(STORAGE_PREFIX + weekKey(currentMonday), JSON.stringify({ v: state, t: stateT }));
   cloudSave();
 }
 function getVal(key, def) { return key in state ? state[key] : def; }
-function setVal(key, val) { state[key] = val; saveState(); }
-function delVal(key) { delete state[key]; saveState(); }
+function setVal(key, val) { state[key] = val; stateT[key] = nowMs(); saveState(); }
+function delVal(key) { delete state[key]; stateT[key] = nowMs(); saveState(); }
 // 単元選択ウィジェットの「その週に扱う単元リスト」（複数単元対応）
 function unitList(taskId, defaultUnit) {
   const l = getVal(`${taskId}.uList`, null);
@@ -1207,10 +1252,8 @@ document.getElementById("prevWeek").addEventListener("click", () => goWeek(-1));
 document.getElementById("nextWeek").addEventListener("click", () => goWeek(1));
 document.getElementById("thisWeek").addEventListener("click", () => { currentMonday = startOfWeek(new Date()); renderWeek(); });
 
-// まずローカルで即描画 → クラウドから取得できたら最新で再描画
+// まずローカルで即描画 → クラウドとマージ（cloudSync内で必要時に再描画）
 renderWeek();
-cloudLoad().then((ok) => { if (ok) renderWeek(); });
-// 別端末で更新された内容を、タブに戻ったとき（保存中でなければ）取り込む
-window.addEventListener("focus", () => {
-  if (SYNC_URL && !_pendingSave) cloudLoad().then((ok) => { if (ok) renderWeek(); });
-});
+cloudLoad();
+// 別端末で更新された内容を、タブに戻ったとき取り込む（マージなのでローカルは消えない）
+window.addEventListener("focus", () => { if (SYNC_URL && !_syncing) cloudLoad(); });
