@@ -7,28 +7,40 @@
   <title>学習ポータル</title>
   <link rel="stylesheet" href="style.css?v=17">
   <style>
-    /* ---- 上部ランチャー（アプリアイコンを小さく並べる） ---- */
-    .portal-top { max-width: 1200px; margin: 0 auto; padding: 16px 16px 6px; }
-    .portal-top h1 { font-size: 20px; margin: 0 0 12px; }
+    /* ---- 上部ランチャー（アプリアイコン：横長・ラベル大きめ） ---- */
+    .portal-top { max-width: 1200px; margin: 0 auto; padding: 16px 16px 8px; }
+    .portal-top h1 { font-size: 23px; margin: 0 0 14px; }   /* 学習ポータル＝大きめ */
     .launcher {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
-      gap: 12px 8px;
+      gap: 12px 6px;
+      grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); /* 縦向き等は折り返し */
     }
-    .launch { display: flex; flex-direction: column; align-items: center; gap: 5px; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+    @media (min-width: 1000px) {            /* iPad横向きは12個を必ず1行 */
+      .launcher { grid-template-columns: repeat(12, 1fr); }
+    }
+    .launch { display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; -webkit-tap-highlight-color: transparent; }
     .launch-icon {
-      width: 50px; height: 50px; border-radius: 15px;
+      width: 100%; max-width: 104px; aspect-ratio: 5 / 4;   /* 横に幅広 */
+      border-radius: 16px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 25px; box-shadow: 0 1px 4px rgba(0,0,0,.10);
+      font-size: 28px; box-shadow: 0 1px 4px rgba(0,0,0,.10);
     }
-    .launch:active .launch-icon { transform: scale(.92); }
-    .launch-label { font-size: 11px; font-weight: 700; color: #475569; text-align: center; line-height: 1.2; }
+    .launch:active .launch-icon { transform: scale(.93); }
+    .launch-label { font-size: 13px; font-weight: 700; color: #475569; text-align: center; line-height: 1.2; }
     .launch.blue   .launch-icon { background: #dbeafe; }
     .launch.green  .launch-icon { background: #dcfce7; }
     .launch.orange .launch-icon { background: #ffedd5; }
     .launch.red    .launch-icon { background: #fee2e2; }
     .launch.purple .launch-icon { background: #ede9fe; }
     .portal-divider { max-width: 1200px; margin: 14px auto 0; border-top: 1px solid var(--line); }
+
+    /* ---- ToDoヘッダー：見出し＋週の日付を1行に（縦幅節約） ---- */
+    .app-header .todo-bar { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin-bottom: 8px; }
+    .app-header .todo-title { font-size: 17px; font-weight: 700; margin: 0; white-space: nowrap; }
+    .app-header .todo-bar .week-nav { margin: 0 0 0 auto; }      /* 右寄せ */
+    .app-header .todo-bar .this-week-btn { margin-left: 6px; }
+    .app-header .overall { margin-top: 0; }
+    .app-header .overall .sync-status { margin: 0 0 0 8px; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -37,7 +49,7 @@
     <h1>📚 学習ポータル</h1>
     <div class="launcher">
       <a class="launch blue"   href="https://komaguchi-wq.github.io/math-quiz/"><span class="launch-icon">📐</span><span class="launch-label">SAPIX算数</span></a>
-      <a class="launch blue"   href="https://komaguchi-wq.github.io/kobetsuba-web-jugyou/"><span class="launch-icon">📘</span><span class="launch-label">コベツバ＆でる順</span></a>
+      <a class="launch blue"   href="https://komaguchi-wq.github.io/kobetsuba-web-jugyou/"><span class="launch-icon">📘</span><span class="launch-label">コベツバ</span></a>
       <a class="launch blue"   href="https://komaguchi-wq.github.io/math-quiz/#%E3%81%95%E3%81%A8/machigai-gallery"><span class="launch-icon">❌</span><span class="launch-label">間違い撲滅</span></a>
       <a class="launch blue"   href="https://komaguchi-wq.github.io/math-challenge/"><span class="launch-icon">🔢</span><span class="launch-label">計算</span></a>
       <a class="launch green"  href="https://komaguchi-wq.github.io/science-daily-check/"><span class="launch-icon">🧪</span><span class="launch-label">SAPIX理科</span></a>
@@ -52,23 +64,25 @@
   </div>
   <div class="portal-divider"></div>
 
-  <!-- ===== 下部：今週のToDo（既存アプリと同一・データ共通） ===== -->
+  <!-- ===== 下部：今週のやったことリスト（既存アプリと同一・データ共通） ===== -->
   <header class="app-header">
-    <h1>📝 今週のToDo</h1>
-    <div class="week-nav">
-      <button id="prevWeek" class="week-btn" aria-label="前の週">‹</button>
-      <div class="week-label">
-        <span id="weekRange">―</span>
-        <span id="weekTag" class="week-tag"></span>
+    <div class="todo-bar">
+      <h1 class="todo-title">📝 今週のやったことリスト</h1>
+      <div class="week-nav">
+        <button id="prevWeek" class="week-btn" aria-label="前の週">‹</button>
+        <div class="week-label">
+          <span id="weekRange">―</span>
+          <span id="weekTag" class="week-tag"></span>
+        </div>
+        <button id="nextWeek" class="week-btn" aria-label="次の週">›</button>
+        <button id="thisWeek" class="this-week-btn">今週へ</button>
       </div>
-      <button id="nextWeek" class="week-btn" aria-label="次の週">›</button>
-      <button id="thisWeek" class="this-week-btn">今週へ</button>
     </div>
     <div class="overall">
       <div class="overall-bar"><div id="overallFill" class="overall-fill"></div></div>
       <span id="overallText" class="overall-text">0%</span>
+      <span id="syncStatus" class="sync-status off">● この端末内に保存</span>
     </div>
-    <div id="syncStatus" class="sync-status off">● この端末内に保存</div>
   </header>
 
   <main id="board" class="board"><!-- 教科カードがJSで描画されます --></main>
