@@ -531,6 +531,84 @@ function linkBtn(url, label) {
   return a;
 }
 
+/* ============================================================
+   ゲーミフィケーション：タップでキラッ演出（毎回ランダムなバリエーション）
+   ============================================================ */
+const CHEER_EMOJIS = ["🎉", "⭐", "🌟", "💯", "👍", "🔥", "😆", "🥳", "✨", "💪", "🌈", "⚡", "🚀", "🏆"];
+const CHEER_WORDS  = ["ナイス！", "やった！", "いいね！", "すごい！", "その調子！", "かんぺき！", "えらい！", "よし！", "ナイスファイト！", "天才！"];
+const CHEER_COLORS = ["#2563eb", "#16a34a", "#ea7317", "#dc2626", "#7c3aed", "#eab308", "#06b6d4", "#ec4899"];
+
+const _rand = (a, b) => a + Math.random() * (b - a);
+const _pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+function fxLayer() {
+  let l = document.getElementById("fx");
+  if (!l) { l = document.createElement("div"); l.id = "fx"; document.body.appendChild(l); }
+  return l;
+}
+function fxSpawn(node, x, y, ms) {
+  node.style.left = x + "px"; node.style.top = y + "px";
+  fxLayer().appendChild(node);
+  setTimeout(() => node.remove(), ms);
+}
+function fxConfetti(x, y, n) {
+  for (let i = 0; i < n; i++) {
+    const p = el("div", "fx-confetti");
+    const ang = _rand(0, Math.PI * 2), dist = _rand(45, 120);
+    p.style.background = _pick(CHEER_COLORS);
+    p.style.setProperty("--dx", Math.cos(ang) * dist + "px");
+    p.style.setProperty("--dy", (Math.sin(ang) * dist - _rand(20, 60)) + "px");
+    p.style.setProperty("--rot", _rand(-360, 360) + "deg");
+    fxSpawn(p, x, y, 950);
+  }
+}
+function fxSparkles(x, y, n) {
+  for (let i = 0; i < n; i++) {
+    const s = el("div", "fx-spark", _pick(["✨", "⭐", "🌟"]));
+    s.style.setProperty("--dx", _rand(-45, 45) + "px");
+    s.style.setProperty("--dy", _rand(-75, -30) + "px");
+    s.style.fontSize = _rand(13, 26) + "px";
+    fxSpawn(s, x + _rand(-10, 10), y + _rand(-10, 10), 850);
+  }
+}
+function fxEmoji(x, y)  { fxSpawn(el("div", "fx-emoji", _pick(CHEER_EMOJIS)), x, y, 950); }
+function fxWord(x, y)   { const w = el("div", "fx-word", _pick(CHEER_WORDS)); w.style.color = _pick(CHEER_COLORS); fxSpawn(w, x, y, 950); }
+function fxRing(x, y)   { const r = el("div", "fx-ring"); r.style.borderColor = _pick(CHEER_COLORS); fxSpawn(r, x, y, 600); }
+
+// level 1=軽い操作 / 2=完了・○・退治など大きめ
+function cheer(evt, level) {
+  let x = window.innerWidth / 2, y = window.innerHeight / 3;
+  if (evt && evt.clientX != null && (evt.clientX || evt.clientY)) { x = evt.clientX; y = evt.clientY; }
+  if (level >= 2) {
+    fxRing(x, y);
+    fxConfetti(x, y, 16);
+    fxEmoji(x, y);
+    if (Math.random() < 0.7) fxWord(x, y - 8);
+  } else {
+    // 軽い操作：毎回ランダムに1種（たまに2種）
+    _pick([
+      () => fxSparkles(x, y, 5),
+      () => fxEmoji(x, y),
+      () => fxWord(x, y),
+      () => { fxRing(x, y); fxSparkles(x, y, 3); },
+      () => fxConfetti(x, y, 7),
+    ])();
+  }
+}
+
+// デイリー達成（5個/8個）を超えた瞬間に画面中央でお祝い
+let _prevDaily = -1;
+function milestoneCheer(n) {
+  if (_prevDaily >= 0) {
+    if ((_prevDaily < 5 && n >= 5) || (_prevDaily < 8 && n >= 8)) {
+      const cx = window.innerWidth / 2, cy = window.innerHeight / 3;
+      fxConfetti(cx, cy, 36);
+      fxEmoji(cx, cy); fxWord(cx, cy - 16);
+    }
+  }
+  _prevDaily = n;
+}
+
 /* ---- matrix（教材×曜日）：教材ごとに「やった行(曜日ボタン)」+「解き直し行」を縦に積む ---- */
 function renderMatrix(task) {
   const wrap = el("div", "task type-matrix");
@@ -552,11 +630,12 @@ function renderMatrix(task) {
         cell.type = "button";
         cell.appendChild(el("span", "m-daylabel", c));
         cell.appendChild(el("span", "m-daymark", on ? "✓" : ""));
-        cell.addEventListener("click", () => {
+        cell.addEventListener("click", (evt) => {
           const nv = !getVal(doKey, false);
           setVal(doKey, nv);
           if (nv) setVal(`${row.id}.redo.${i}`, "X"); else delVal(`${row.id}.redo.${i}`);
           render(); refreshProgress();
+          if (nv) cheer(evt, 1);
         });
         grid.appendChild(cell);
       });
@@ -573,9 +652,11 @@ function renderMatrix(task) {
           const rb = el("button", "m-redo cr-redo " + (st === "○" ? "st-done" : "st-todo"), st);
           rb.type = "button";
           rb.title = `${row.label} ${c} の解き直し`;
-          rb.addEventListener("click", () => {
-            setVal(reKey, getVal(reKey, "X") === "○" ? "X" : "○");
+          rb.addEventListener("click", (evt) => {
+            const nv = getVal(reKey, "X") === "○" ? "X" : "○";
+            setVal(reKey, nv);
             render(); refreshProgress();
+            if (nv === "○") cheer(evt, 2);
           });
           grid.appendChild(rb);
         }
@@ -648,10 +729,11 @@ function renderCheckScore(task) {
   const head = el("div", "task-head");
   const lab = el("label", "check-label" + (getVal(doneKey, false) ? " done" : ""));
   const cb = el("input"); cb.type = "checkbox"; cb.checked = getVal(doneKey, false);
-  cb.addEventListener("change", () => {
+  cb.addEventListener("change", (evt) => {
     setVal(doneKey, cb.checked);
     lab.classList.toggle("done", cb.checked);
     refreshProgress();
+    if (cb.checked) cheer(evt, 1);
   });
   lab.appendChild(cb);
   lab.appendChild(el("span", "check-text", task.label));
@@ -731,11 +813,12 @@ function dsupportBody(task, unit) {
       const on = getVal(doKey, false);
       const b = el("button", "ae-btn" + (on ? " on" : ""), L);
       b.type = "button";
-      b.addEventListener("click", () => {
+      b.addEventListener("click", (evt) => {
         const nv = !getVal(doKey, false);
         setVal(doKey, nv);
         if (nv) setVal(reKey, "X"); else delVal(reKey);
         renderRows(); refreshProgress();
+        if (nv) cheer(evt, 1);
       });
       doCells.appendChild(b);
       if (!on) {
@@ -744,9 +827,11 @@ function dsupportBody(task, unit) {
         const st = getVal(reKey, "X");
         const rb = el("button", "ae-redo cr-redo " + (st === "○" ? "st-done" : "st-todo"), st);
         rb.type = "button";
-        rb.addEventListener("click", () => {
-          setVal(reKey, getVal(reKey, "X") === "○" ? "X" : "○");
+        rb.addEventListener("click", (evt) => {
+          const nv = getVal(reKey, "X") === "○" ? "X" : "○";
+          setVal(reKey, nv);
           renderRows(); refreshProgress();
+          if (nv === "○") cheer(evt, 2);
         });
         reCells.appendChild(rb);
       }
@@ -784,12 +869,14 @@ function trackBody(task, unit) {
       const s = getVal(stKey, 0);
       const b = el("button", "tk-state st" + s, TRACK_STATES[s]);
       b.type = "button";
-      b.addEventListener("click", () => {
+      b.addEventListener("click", (evt) => {
         const ns = (getVal(stKey, 0) + 1) % 3;
         setVal(stKey, ns);
         if (ns === 2) setVal(`${task.id}.${unit}.${i}.redo`, "X");
         else delVal(`${task.id}.${unit}.${i}.redo`);
         render(); refreshProgress();
+        if (ns === 1) cheer(evt, 1);
+        else if (ns === 2) cheer(evt, 2);
       });
       grid.appendChild(b);
     });
@@ -805,9 +892,11 @@ function trackBody(task, unit) {
         const st = getVal(reKey, "X");
         const rb = el("button", "tk-redo cr-redo " + (st === "○" ? "st-done" : "st-todo"), st);
         rb.type = "button";
-        rb.addEventListener("click", () => {
-          setVal(reKey, getVal(reKey, "X") === "○" ? "X" : "○");
+        rb.addEventListener("click", (evt) => {
+          const nv = getVal(reKey, "X") === "○" ? "X" : "○";
+          setVal(reKey, nv);
           render(); refreshProgress();
+          if (nv === "○") cheer(evt, 2);
         });
         grid.appendChild(rb);
       }
@@ -858,9 +947,11 @@ function makeCounterRedo(base, opts) {
       const st = getVal(rk, "X");
       const rb = el("button", "cr-redo " + (st === "○" ? "st-done" : "st-todo"), st);
       rb.type = "button";
-      rb.addEventListener("click", () => {
-        setVal(rk, getVal(rk, "X") === "○" ? "X" : "○");
+      rb.addEventListener("click", (evt) => {
+        const nv = getVal(rk, "X") === "○" ? "X" : "○";
+        setVal(rk, nv);
         render(); refreshProgress();
+        if (nv === "○") cheer(evt, 2);
       });
       pair.appendChild(rb);
       pairs.appendChild(pair);
@@ -871,7 +962,7 @@ function makeCounterRedo(base, opts) {
     if (nums.length < 10) {
       const add = el("button", "cr-add", "＋追加");
       add.type = "button";
-      add.addEventListener("click", () => {
+      add.addEventListener("click", (evt) => {
         const a = getNums();
         const used = new Set(a);
         let next = a.length ? Math.max.apply(null, a) + 1 : opts.start;
@@ -881,6 +972,7 @@ function makeCounterRedo(base, opts) {
         setNums(a);
         setVal(`${base}.redo.${a.length - 1}`, "X");
         render(); refreshProgress();
+        cheer(evt, 1);
       });
       ctrl.appendChild(add);
     }
@@ -921,10 +1013,12 @@ function renderGallery(task) {
     const key = `${task.id}.${n}`;
     const cell = el("button", "gl-cell" + (getVal(key, false) ? " on" : ""), n + "退治");
     cell.type = "button";
-    cell.addEventListener("click", () => {
-      setVal(key, !getVal(key, false));
-      cell.classList.toggle("on", getVal(key, false));
+    cell.addEventListener("click", (evt) => {
+      const nv = !getVal(key, false);
+      setVal(key, nv);
+      cell.classList.toggle("on", nv);
       refreshProgress();
+      if (nv) cheer(evt, 2);   // 退治＝大きめお祝い
     });
     grid.appendChild(cell);
   }
@@ -1016,6 +1110,7 @@ function updateMilestone() {
   else             { cls += " lv0"; text = `解き直し${n}個 ・ あと${5 - n}個で目標達成`; }
   badge.className = cls;
   badge.textContent = text;
+  milestoneCheer(n);
 }
 
 function refreshProgress() {
@@ -1054,11 +1149,6 @@ function goWeek(delta) { currentMonday = addDays(currentMonday, delta * 7); rend
 document.getElementById("prevWeek").addEventListener("click", () => goWeek(-1));
 document.getElementById("nextWeek").addEventListener("click", () => goWeek(1));
 document.getElementById("thisWeek").addEventListener("click", () => { currentMonday = startOfWeek(new Date()); renderWeek(); });
-document.getElementById("resetWeek").addEventListener("click", () => {
-  if (confirm("この週のチェックと得点をすべて消します。よろしいですか？")) {
-    state = {}; saveState(); renderBoard();
-  }
-});
 
 // まずローカルで即描画 → クラウドから取得できたら最新で再描画
 renderWeek();

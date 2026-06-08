@@ -389,3 +389,46 @@ body {
 }
 .reset-btn:active { background: #fef2f2; }
 .note { color: var(--ink-soft); font-size: 12px; margin-top: 10px; }
+
+/* ============================================================
+   ゲーミフィケーション：タップでキラッ演出（FXレイヤー）
+   ============================================================ */
+#fx { position: fixed; inset: 0; pointer-events: none; z-index: 9999; overflow: hidden; }
+#fx > * { position: absolute; transform: translate(-50%, -50%); will-change: transform, opacity; }
+
+.fx-confetti { width: 9px; height: 9px; border-radius: 2px; }
+.fx-confetti { animation: fxConf .95s cubic-bezier(.2,.7,.3,1) forwards; }
+@keyframes fxConf {
+  0%   { transform: translate(-50%,-50%) rotate(0); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)); opacity: 0; }
+}
+.fx-spark { animation: fxSpark .85s ease-out forwards; }
+@keyframes fxSpark {
+  0%   { transform: translate(-50%,-50%) scale(.3); opacity: 0; }
+  30%  { transform: translate(calc(-50% + var(--dx)*.4), calc(-50% + var(--dy)*.4)) scale(1.15); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.6); opacity: 0; }
+}
+.fx-emoji { font-size: 30px; animation: fxEmoji .95s ease-out forwards; }
+@keyframes fxEmoji {
+  0%   { transform: translate(-50%,-50%) scale(.2); opacity: 0; }
+  25%  { transform: translate(-50%,-62%) scale(1.3); opacity: 1; }
+  100% { transform: translate(-50%,-135%) scale(1); opacity: 0; }
+}
+.fx-word {
+  font-size: 18px; font-weight: 900; white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0,0,0,.18);
+  animation: fxWord .95s ease-out forwards;
+}
+@keyframes fxWord {
+  0%   { transform: translate(-50%,-50%) scale(.5); opacity: 0; }
+  25%  { transform: translate(-50%,-85%) scale(1.12); opacity: 1; }
+  100% { transform: translate(-50%,-155%) scale(1); opacity: 0; }
+}
+.fx-ring { width: 18px; height: 18px; border-radius: 50%; border: 3px solid; animation: fxRing .6s ease-out forwards; }
+@keyframes fxRing {
+  0%   { transform: translate(-50%,-50%) scale(.4); opacity: .9; }
+  100% { transform: translate(-50%,-50%) scale(3.4); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #fx { display: none; }
+}
