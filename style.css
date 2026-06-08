@@ -228,6 +228,10 @@ body {
 .tk-state.st0 { background: #f1f5f9; color: #94a3b8; }                       /* ー グレーアウト */
 .tk-state.st1 { background: #fef3c7; color: #b45309; border-color: #fcd34d; } /* 進行中 */
 .tk-state.st2 { background: #dcfce7; color: #15803d; border-color: #86efac; } /* 完了 */
+.tk-state.st3 {                                                              /* 存在しない＝未着手色＋二重取り消し線 */
+  background: #f1f5f9; color: #94a3b8;
+  text-decoration: line-through; text-decoration-style: double; text-decoration-color: #94a3b8;
+}
 .tk-state:active { transform: scale(.96); }
 .unit-block .tk-redo {
   width: 100%; min-width: 0; height: 34px; padding: 0;
@@ -335,6 +339,9 @@ body {
   font-size: 16px; font-weight: 800; cursor: pointer;
 }
 .ae-btn.on { background: var(--math); border-color: var(--math); color: #fff; }
+.ae-btn.na {                                                                 /* 存在しない＝未着手色＋二重取り消し線 */
+  text-decoration: line-through; text-decoration-style: double; text-decoration-color: var(--ink-soft);
+}
 .ae-btn:active { transform: scale(.96); }
 /* 解き直しセル（やったボタンと列を揃える） */
 .unit-block .ae-redo {

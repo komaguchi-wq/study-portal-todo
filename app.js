@@ -469,8 +469,9 @@ function taskStats(task) {
     let done = 0, total = 0;
     unitList(task.id, task.units[0].id).forEach((unit) => {
       task.items.forEach((_, i) => {
-        total += 3;                                     // ー=0, 進行中=1, 完了=2, 完了+○=3
         const s = getVal(`${task.id}.${unit}.${i}.state`, 0);
+        if (s === 3) return;                            // 存在しない は集計から除外
+        total += 3;                                     // 進行中=1, 完了=2, 完了+○=3
         done += s;
         if (s === 2 && getVal(`${task.id}.${unit}.${i}.redo`, "X") === "○") done += 1;
       });
@@ -481,9 +482,10 @@ function taskStats(task) {
     let done = 0, total = 0;
     unitList(task.id, DS_UNITS[0].id).forEach((unit) => {
       AE.forEach((_, i) => {
-        const on = getVal(`${task.id}.${unit}.do.${i}`, false);
-        total += 1;                     // やった
-        if (on) {
+        const s = getVal(`${task.id}.${unit}.do.${i}`, 0);  // 0未 1やった 2存在しない
+        if (s === 2) return;            // 存在しない は集計から除外
+        total += 1;                     // やった枠
+        if (s === 1) {
           done += 1;
           total += 1;                   // 解き直し（やった時のみ）
           if (getVal(`${task.id}.${unit}.redo.${i}`, "X") === "○") done += 1;
@@ -846,20 +848,22 @@ function dsupportBody(task, unit) {
     const reCells = el("div", "ae-cells");
 
     AE.forEach((L, i) => {
-      const doKey = `${task.id}.${unit}.do.${i}`;
+      const doKey = `${task.id}.${unit}.do.${i}`;   // 0=未着手 1=やった(完了) 2=存在しない
       const reKey = `${task.id}.${unit}.redo.${i}`;
-      const on = getVal(doKey, false);
-      const b = el("button", "ae-btn" + (on ? " on" : ""), L);
+      const s = getVal(doKey, 0);
+      const cls = s === 1 ? "ae-btn on" : s === 2 ? "ae-btn na" : "ae-btn";
+      const b = el("button", cls, L);
       b.type = "button";
+      if (s === 2) b.title = "この単元には無いパート";
       b.addEventListener("click", (evt) => {
-        const nv = !getVal(doKey, false);
-        setVal(doKey, nv);
-        if (nv) setVal(reKey, "X"); else delVal(reKey);
+        const ns = (getVal(doKey, 0) + 1) % 3;   // 未→やった→存在しない→未
+        setVal(doKey, ns);
+        if (ns === 1) setVal(reKey, "X"); else delVal(reKey);
         renderRows(); refreshProgress();
-        if (nv) cheer(evt, 1);
+        if (ns === 1) cheer(evt, 1);
       });
       doCells.appendChild(b);
-      if (!on) {
+      if (s !== 1) {
         reCells.appendChild(el("div", "ae-redo cr-dash", "-"));
       } else {
         const st = getVal(reKey, "X");
@@ -887,7 +891,7 @@ function renderDsupport(task) {
 }
 
 /* ---- track（理科・社会）：単元選択 + 項目を横並び + 3状態ボタン + 解き直し行（複数単元可） ---- */
-const TRACK_STATES = ["ー", "進行中", "完了"];
+const TRACK_STATES = ["ー", "進行中", "完了", "なし"];   // 3=存在しない
 function trackBody(task, unit) {
   const grid = el("div", "tk-grid");
   grid.style.gridTemplateColumns = `max-content repeat(${task.items.length}, 1fr)`;
@@ -907,8 +911,9 @@ function trackBody(task, unit) {
       const s = getVal(stKey, 0);
       const b = el("button", "tk-state st" + s, TRACK_STATES[s]);
       b.type = "button";
+      if (s === 3) b.title = "この単元には無いパート";
       b.addEventListener("click", (evt) => {
-        const ns = (getVal(stKey, 0) + 1) % 3;
+        const ns = (getVal(stKey, 0) + 1) % 4;   // 未→進行中→完了→存在しない→未
         setVal(stKey, ns);
         if (ns === 2) setVal(`${task.id}.${unit}.${i}.redo`, "X");
         else delVal(`${task.id}.${unit}.${i}.redo`);
