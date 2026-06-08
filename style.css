@@ -326,18 +326,19 @@ body {
 .ds-rows { display: flex; flex-direction: column; gap: 10px; }
 .ae-row { display: flex; flex-direction: column; gap: 6px; }
 .ae-label { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
-.ae-cells { display: flex; gap: 6px; flex-wrap: wrap; }
+/* A〜Eは横幅いっぱいに均等配置（左寄せにしない） */
+.ae-cells { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .ae-btn {
-  width: 46px; height: 44px;
+  width: 100%; min-width: 0; height: 44px;
   border: 1px solid var(--line); border-radius: 10px;
   background: #fafbfc; color: var(--ink-soft);
   font-size: 16px; font-weight: 800; cursor: pointer;
 }
 .ae-btn.on { background: var(--math); border-color: var(--math); color: #fff; }
 .ae-btn:active { transform: scale(.96); }
-/* 解き直しセル（やったボタンと幅を揃える） */
+/* 解き直しセル（やったボタンと列を揃える） */
 .unit-block .ae-redo {
-  width: 46px; min-width: 46px; height: 44px; padding: 0;
+  width: 100%; min-width: 0; height: 44px; padding: 0;
   display: flex; align-items: center; justify-content: center;
 }
 
@@ -434,12 +435,13 @@ body {
   0%   { transform: translate(-50%,-50%) scale(.3); opacity: 1; }
   100% { transform: translate(-50%,-50%) scale(6); opacity: 0; }
 }
-/* 放射→弧を描いて落ちる粒（紙吹雪・花火・噴水の本体） */
-.fx-p { border-radius: 2px; animation: fxArc 1.2s cubic-bezier(.15,.6,.3,1) forwards; }
-@keyframes fxArc {
-  0%   { transform: translate(-50%,-50%) scale(.5) rotate(0); opacity: 1; }
-  55%  { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1) rotate(calc(var(--rot) * .5)); opacity: 1; }
-  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + var(--fall))) scale(.85) rotate(var(--rot)); opacity: 0; }
+/* ふわっと広がってその場で薄く消える粒（高速落下なし／自然にゆっくり漂って落ち切る前にフェード） */
+.fx-p { border-radius: 2px; animation: fxFloat 1.5s ease-out forwards; }
+@keyframes fxFloat {
+  0%   { transform: translate(-50%,-50%) scale(.4) rotate(0); opacity: 0; }
+  18%  { opacity: 1; }
+  60%  { opacity: .9; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + var(--fall))) scale(1) rotate(var(--rot)); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   #fx { display: none; }

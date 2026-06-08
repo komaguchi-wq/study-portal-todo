@@ -543,7 +543,7 @@ function linkBtn(url, label) {
    FX_DEFAULT で全体の既定スタイルを切り替えられる。
    ============================================================ */
 const CHEER_COLORS = ["#2563eb", "#16a34a", "#ea7317", "#dc2626", "#7c3aed", "#eab308", "#06b6d4", "#ec4899", "#f59e0b"];
-const FX_DEFAULT = "firework";   // デイリー以外の操作で使う既定スタイル
+const FX_DEFAULT = "multi";   // 全リアクションを「分野別（連発花火）」に統一
 
 const _rand = (a, b) => a + Math.random() * (b - a);
 const _pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -608,14 +608,14 @@ const FX_STYLES = {
     fxBurst(x, y, Math.round(34 * k + 12), { angMin: 0, angMax: TAU, dist: 165, size: [6, 10], fall: 90, dur: 1250 });
     fxSparkles(x, y, Math.round(7 * k + 3));
   },
-  // C: 連発花火（時間差で複数バースト）
+  // C: 連発花火（時間差で複数バースト）。ふわっと広がってその場で薄く消える
   multi(x, y, k) {
     const bursts = [[-130, -55, 0], [10, -100, 130], [125, -60, 250], [-60, -25, 380], [70, -15, 470]];
     bursts.forEach(function (b, idx) {
       if (idx >= 3 && k < 1) return;
       setTimeout(function () {
         fxRing(x + b[0], y + b[1], true);
-        fxBurst(x + b[0], y + b[1], Math.round(18 * k + 8), { angMin: 0, angMax: TAU, dist: 105, size: [5, 9], fall: 80, dur: 1150 });
+        fxBurst(x + b[0], y + b[1], Math.round(18 * k + 8), { angMin: 0, angMax: TAU, dist: 110, size: [5, 9], fall: 34, dur: 1500 });
       }, b[2]);
     });
   },
@@ -642,9 +642,8 @@ function milestoneCheer(n) {
   _prevDaily = n;
 }
 
-/* ★お試し：毎日のチェック4教材ごとに割り当てる演出スタイル
-   ["デイリー","基礎定着","分野別","でる順"] の順 */
-const MATRIX_ROW_STYLES = ["confetti", "firework", "multi", "fountain"];
+/* 演出スタイルは全教科とも「分野別（連発花火）」に統一 */
+const MATRIX_ROW_STYLES = ["multi", "multi", "multi", "multi"];
 
 /* ---- matrix（教材×曜日）：教材ごとに「やった行(曜日ボタン)」+「解き直し行」を縦に積む ---- */
 function renderMatrix(task) {
