@@ -327,7 +327,7 @@ function fmtRange(monday) {
    SYNC_URL に Apps Script の /exec URL を入れると、家族で共有する
    1つのデータとして全端末で同期する（空ならこの端末内のみ）。
    ============================================================ */
-const SYNC_URL = ""; // ← デプロイ後の https://script.google.com/macros/s/.../exec を貼る
+const SYNC_URL = "https://script.google.com/macros/s/AKfycbxHRyzN_Z9VvJxTSQ_tKgNoPSyC6CqLONWH6TwawyumWQvpg90HL3fNbnfYRUSCEL86/exec";
 
 function setSyncStatus(s) {
   const e = document.getElementById("syncStatus");
