@@ -16,8 +16,8 @@ const APP = {
 const DAYS = ["月", "火", "水", "木", "金", "土", "日"];
 const AE   = ["A", "B", "C", "D", "E"];
 
-/* ---- 算数 デイリーサポートの単元名（最新が上） ----
-   ※ 算数アプリに単元を追加したら、ここも先頭に足してください */
+/* ---- 算数 デイリーサポートの単元名（フォールバック。通常は units.json から自動取得） ----
+   ※ 手で足す必要はありません。各アプリに単元を追加すれば自動反映されます（下の UNIT_SOURCES 参照） */
 const DS_UNITS = [
   { id: "61-14",  title: "61-14 規則性に関する問題" },
   { id: "61-13",  title: "61-13 場合の数" },
@@ -41,8 +41,8 @@ const DS_UNITS = [
   { id: "61-01",  title: "61-01 数の性質" },
 ];
 
-/* ---- 理科v2 デイリーサピックスの単元名（最新が上） ----
-   ※ 理科v2に単元を追加したら、ここも先頭に足してください */
+/* ---- 理科v2 デイリーサピックスの単元名（フォールバック。通常は units.json から自動取得） ----
+   ※ 手で足す必要はありません（下の UNIT_SOURCES 参照） */
 const SCI_DAILY_UNITS = [
   { id: "630-14", title: "630-14 電熱線" },
   { id: "630-13", title: "630-13 星の動き" },
@@ -177,6 +177,55 @@ const SHA_COREPLUS_UNITS = [
   { id: "cp-20", title: "cp-20 第II部第3節 公民・国際社会のプラス知識" },
   { id: "cp-21", title: "cp-21 第II部第4節 日本の伝統文化のプラス知識" },
 ];
+
+/* ============================================================
+   単元リストの自動同期（各アプリの units.json から取得）
+   ------------------------------------------------------------
+   上の各 *_UNITS 配列は「オフライン時／取得失敗時のフォールバック」。
+   通常はポータルを開くたびに各アプリの units.json を読みに行き、
+   最新の単元を自動反映する（＝アプリ側に単元を足せば自動で増える）。
+   ・保存は単元 id キーなので、並びが変わっても進捗は消えない
+   ・配列は splice で「中身だけ」差し替え、SUBJECTS が参照する
+     同じ配列インスタンスを更新する（参照を壊さない）
+   ============================================================ */
+const UNIT_SOURCES = [
+  { arr: DS_UNITS,          url: APP.math    + "categories/daily-support/units.json", reverse: true  },
+  { arr: SCI_DAILY_UNITS,   url: APP.science + "categories/daily-check/units.json",   reverse: true  },
+  { arr: SCI_WEEKLY_UNITS,  url: APP.science + "categories/weekly-sapix/units.json",  reverse: true  },
+  { arr: SCI_COREPLUS_UNITS,url: APP.science + "categories/coreplus/units.json",      reverse: false }, // 節順を維持
+  { arr: SHA_DAILY_UNITS,   url: APP.shakai  + "categories/daily-check/units.json",   reverse: true  },
+  { arr: SHA_WEEKLY_UNITS,  url: APP.shakai  + "categories/weekly-sapix/units.json",  reverse: true  },
+  { arr: SHA_COREPLUS_UNITS,url: APP.shakai  + "categories/coreplus/units.json",      reverse: false }, // 節順を維持
+];
+
+// units.json の1件を {id, title} に正規化。
+// タイトルに既に id が付いていればそのまま、無ければ "id タイトル" にする。
+function normUnit(u) {
+  const id = (u && u.id != null) ? String(u.id).trim() : "";
+  const raw = (u && u.title != null) ? String(u.title).trim() : "";
+  if (!id) return null;
+  const title = raw ? (raw.startsWith(id) ? raw : `${id} ${raw}`) : id;
+  return { id, title };
+}
+
+async function refreshUnitLists() {
+  const results = await Promise.all(UNIT_SOURCES.map(async (src) => {
+    try {
+      const res = await fetch(src.url, { cache: "no-store" });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (!Array.isArray(data) || !data.length) return false;
+      let list = data.map(normUnit).filter(Boolean);
+      if (!list.length) return false;
+      if (src.reverse) list.reverse();
+      src.arr.splice(0, src.arr.length, ...list);   // 参照を保ったまま中身を入れ替え
+      return true;
+    } catch (e) {
+      return false;   // オフライン等はフォールバック配列のまま
+    }
+  }));
+  if (results.some(Boolean) && typeof renderBoard === "function") renderBoard();
+}
 
 /* ============================================================
    タスク定義
@@ -855,7 +904,26 @@ function renderCheckScore(task) {
 function renderUnitWidget(taskId, units, buildBody) {
   const wrap = el("div", "task type-unit");
   const listKey = `${taskId}.uList`;
-  const getList = () => { const l = getVal(listKey, null); return (Array.isArray(l) && l.length) ? l.slice() : [units[0].id]; };
+  // この週で進捗（state/redo/input/score など）が入っている単元 id を、
+  // units の並び（新しい順）で返す。uList 未保存時のデフォルト判定に使う。
+  const unitsWithProgress = () => {
+    const valid = new Set(units.map((u) => u.id));
+    const hit = new Set();
+    for (const k of Object.keys(state)) {
+      if (k.indexOf(taskId + ".") !== 0) continue;          // この task のキーだけ
+      const seg = k.slice(taskId.length + 1).split(".")[0]; // 例 "m_dsupport.61-15.0.state" → "61-15"
+      if (valid.has(seg)) hit.add(seg);
+    }
+    return units.map((u) => u.id).filter((id) => hit.has(id));
+  };
+  // 単元の選択：明示的に選び直した週は uList を尊重。未保存なら
+  // 「進捗のある単元（あれば全部・新しい順）」、それも無ければ最新1件をデフォルトに。
+  const getList = () => {
+    const l = getVal(listKey, null);
+    if (Array.isArray(l) && l.length) return l.slice();
+    const prog = unitsWithProgress();
+    return prog.length ? prog : [units[0].id];
+  };
   const setList = (l) => setVal(listKey, l);
 
   function renderAll() {
@@ -1267,6 +1335,7 @@ document.getElementById("thisWeek").addEventListener("click", () => { currentMon
 // まずローカルで即描画 → クラウドとマージ（cloudSync内で必要時に再描画）
 setupBonus();
 renderWeek();
+refreshUnitLists();   // 各アプリの units.json から最新単元を取得して再描画（失敗時はフォールバック配列）
 cloudLoad();
 // 別端末で更新された内容を、タブに戻ったとき取り込む（マージなのでローカルは消えない）
 window.addEventListener("focus", () => { if (SYNC_URL && !_syncing) cloudLoad(); });
