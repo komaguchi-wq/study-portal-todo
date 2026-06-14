@@ -259,7 +259,7 @@ const SUBJECTS = [
         link: APP.math,
         col: "R",
         tasks: [
-          { id: "m_dsupport", type: "track", units: DS_UNITS, items: ["A", "B", "C", "D", "E"] },
+          { id: "m_dsupport", type: "track", units: DS_UNITS, items: ["A", "B", "C", "D", "E", "図形"] },
         ],
       },
       {
